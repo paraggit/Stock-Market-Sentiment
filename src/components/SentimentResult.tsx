@@ -109,9 +109,8 @@ const SentimentResult: React.FC<SentimentResultProps> = ({ result }) => {
   );
   const shareTitle = `AI Stock Analysis: ${result.companyName} (${result.stockSymbol})`;
   const encodedUrl = encodeURIComponent(window.location.href);
-  const encodedSummary = encodeURIComponent(result.summary);
-  // FIX: `encodedTitle` was not defined. It is now defined by encoding `shareTitle`.
   const encodedTitle = encodeURIComponent(shareTitle);
+  const encodedSummary = encodeURIComponent(result.summary);
   
   const whatsappLink = `https://wa.me/?text=${shareText}`;
   const telegramLink = `https://t.me/share/url?url=${encodedUrl}&text=${shareText}`;
@@ -128,6 +127,11 @@ const SentimentResult: React.FC<SentimentResultProps> = ({ result }) => {
                     {result.recommendation}
                 </span>
                 <p className="text-gray-300 italic">"{result.recommendationSummary}"</p>
+            </div>
+            
+            <div className={`flex items-center gap-2 mt-3 font-bold text-xl ${styles.text}`}>
+              {styles.icon}
+              <span>{result.overallSentiment} Sentiment</span>
             </div>
           </div>
           <div className="text-center sm:text-right">
@@ -160,7 +164,7 @@ const SentimentResult: React.FC<SentimentResultProps> = ({ result }) => {
              low52={result.fiftyTwoWeekLow}
              indicators={result.technicalIndicators}
           />
-
+          
           <SentimentChart data={result.historicalData} />
           
           <div>
@@ -201,7 +205,7 @@ const SentimentResult: React.FC<SentimentResultProps> = ({ result }) => {
         </div>
         
         {/* Sidebar (1/3 width on large screens) */}
-        <div className="lg:col-span-1 space-y-6">
+        <div className="space-y-6">
             {result.aspectSentiment && <AspectRadarChart data={result.aspectSentiment} />}
             
             {result.newsArticles && result.newsArticles.length > 0 && (
@@ -218,7 +222,7 @@ const SentimentResult: React.FC<SentimentResultProps> = ({ result }) => {
                               href={source.uri} 
                               target="_blank" 
                               rel="noopener noreferrer" 
-                              className="block text-sm text-blue-400 hover:text-blue-300 hover:underline truncate"
+                              className="block text-sm text-sky-400 hover:text-sky-300 hover:underline truncate"
                               title={source.uri}
                           >
                               {source.title || new URL(source.uri).hostname}
@@ -237,7 +241,6 @@ const SentimentResult: React.FC<SentimentResultProps> = ({ result }) => {
                     <a href={telegramLink} target="_blank" rel="noopener noreferrer" aria-label="Share on Telegram" className="p-3 bg-gray-700 rounded-full text-gray-300 hover:bg-sky-500 hover:text-white transition-colors duration-300">
                         <TelegramIcon className="h-6 w-6" />
                     </a>
-                    {/* FIX: Corrected variable name from `linkedinLink` to `linkedInLink` to match its definition. */}
                     <a href={linkedInLink} target="_blank" rel="noopener noreferrer" aria-label="Share on LinkedIn" className="p-3 bg-gray-700 rounded-full text-gray-300 hover:bg-blue-600 hover:text-white transition-colors duration-300">
                         <LinkedInIcon className="h-6 w-6" />
                     </a>

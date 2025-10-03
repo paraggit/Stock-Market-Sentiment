@@ -1,10 +1,8 @@
-// Fix: Import GoogleGenAI instead of GoogleGenerativeAI.
-import { GoogleGenAI } from "@google/genai";
-import type { SentimentAnalysis, NewsArticle, HistoricalDataPoint, PointReason, AspectSentiment, TechnicalIndicators } from '../types';
+import { GoogleGenerativeAI } from "@google/generative-ai";
+import type { SentimentAnalysis, NewsArticle, HistoricalDataPoint, PointReason } from '../types';
 import { Sentiment, Recommendation } from '../types';
 
-// Fix: Initialize GoogleGenAI with a named apiKey parameter.
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY! });
+const ai = new GoogleGenerativeAI(process.env.API_KEY!);
 
 function parseJsonFromMarkdown(text: string): any {
   // Use a more robust regex to find the JSON block
@@ -82,25 +80,27 @@ export const getSentimentAnalysis = async (companyOrSymbol: string, exchange: st
     - The 'summary' MUST be concise and directly highlight the main drivers influencing the score.
     - 'recommendationSummary' MUST be a single, concise sentence explaining the recommendation, considering all factors including technicals.
     - For 'positivePoints' and 'negativePoints', provide specific examples or data points in the 'reason' field. For example: { "point": "Strong Earnings", "reason": "Reported a 20% YoY revenue growth, beating analyst expectations." }.
-    - 'historicalData' must contain exactly 12 entries, one for each of the last 12 months. Ensure the 'price' is the closing price for that month. Provide values for ma50, ma200, rsi14, and volume for each month if available; otherwise, use 'null'.
+    - 'historicalData' must contain exactly 12 entries, one for each of the last 12 months. Ensure the 'price' is the closing price for that month. Provide values for ma50, ma200, rsi14, sentimentScore, and volume for each month if available; otherwise, use 'null'.
     - 'aspectSentiment' scores should be between -1 (very negative) and 1 (very positive), reflecting sentiment towards that specific area of the business.
     - Ensure all fields are populated correctly and the entire output is a single, valid JSON object with no extraneous text or formatting.
   `;
 
   try {
-    // Fix: Use ai.models.generateContent directly, not the deprecated getGenerativeModel/generateContent pattern.
-    // Fix: Use the 'gemini-2.5-flash' model instead of the prohibited 'gemini-1.5-flash'.
-    // Fix: Remove `responseMimeType` as it's not allowed with the googleSearch tool.
-    const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
-      contents: prompt,
-      config: {
-        tools: [{googleSearch: {}}],
+    const genAI = new GoogleGenerativeAI(process.env.API_KEY!);
+    const model = genAI.getGenerativeModel({
+      model: "gemini-1.5-flash",
+      generationConfig: {
+        responseMimeType: "application/json",
       },
     });
+
+    const result = await model.generateContent({
+      contents: [{ role: 'user', parts: [{ text: prompt }] }],
+      tools: [{ google_search: {} }],
+    });
     
-    // Fix: Access the response text directly via the `.text` property.
-    const responseText = response.text;
+    const response = result.response;
+    const responseText = response.text();
     const parsedData = parseJsonFromMarkdown(responseText);
 
     // Sanitize news articles to filter out any incomplete entries
@@ -123,20 +123,25 @@ export const getSentimentAnalysis = async (companyOrSymbol: string, exchange: st
         parsedData.historicalData = [];
     }
 
-    // Fix: Correctly extract grounding metadata from `response.candidates`.
-    const groundingMetadata = response.candidates?.[0]?.groundingMetadata;
-    const dataSources = groundingMetadata?.groundingChunks
-        ?.map(chunk => chunk.web)
-        .filter((web): web is { uri: string; title: string } => !!(web && web.uri && web.title))
-        .map(web => ({ title: web.title, uri: web.uri })) ?? [];
-
+    const groundingAttribution = response.candidates?.[0]?.citationMetadata?.citationSources;
+    const dataSources = groundingAttribution
+        ?.map(source => ({ uri: source.uri, title: source.uri })) // Title may not be available directly in this structure, using URI as fallback
+        .filter((source): source is { uri: string; title: string } => !!source.uri) ?? [];
+    
+    // Deduplicate sources based on URI
+    const uniqueDataSources = Array.from(new Map(dataSources.map(item => [item['uri'], item])).values());
+  
     const finalResult: SentimentAnalysis = {
       ...parsedData,
-      dataSources: dataSources,
+      dataSources: uniqueDataSources,
     };
     
-    // Perform a basic validation to ensure core properties exist
-    if (!finalResult.companyName || !finalResult.stockSymbol || !finalResult.technicalIndicators) {
+    if (
+        !finalResult.companyName || 
+        !finalResult.stockSymbol || 
+        !finalResult.currencySymbol ||
+        !result.response.candidates?.[0]?.content.parts[0].text
+    ) {
         throw new Error("Received incomplete or invalid data from the AI model.");
     }
       
