@@ -60,12 +60,12 @@ const IndicatorDisplay: React.FC<{ label: string; value: string; description?: s
 const PriceChart: React.FC<PriceChartProps> = ({ data, currencySymbol, high52, low52, indicators }) => {
   const chartData = data.map(d => ({
     ...d,
-    name: new Date(d.date + '-02').toLocaleDateString('en-US', { month: 'short', year: '2-digit' }),
+    name: new Date(d.date + '-02').toLocaleString('default', { month: 'short', year: '2-digit' }),
   }));
   
   const yAxisPriceDomain: [number, number] = [
-    Math.min(...chartData.map(d => d.price || Infinity)) * 0.95,
-    Math.max(...chartData.map(d => d.price || -Infinity)) * 1.05
+    Math.min(...chartData.map(d => d.price || Infinity).filter(p => p !== Infinity)) * 0.95,
+    Math.max(...chartData.map(d => d.price || -Infinity).filter(p => p !== -Infinity)) * 1.05
   ];
 
   const getRsiInterpretation = (rsi: number) => {
@@ -75,16 +75,14 @@ const PriceChart: React.FC<PriceChartProps> = ({ data, currencySymbol, high52, l
   }
 
   return (
-    <div className="bg-gray-900/50 p-4 rounded-lg space-y-6 border border-gray-700">
+    <div className="bg-gray-800 p-4 rounded-lg space-y-6">
        <div>
-        <h3 className="text-xl font-semibold text-gray-200 mb-4">Price & Volume</h3>
-        <div style={{ width: '100%', height: 350 }}>
+        <h3 className="text-xl font-semibold text-gray-200 mb-4">Price, Volume & Technicals</h3>
+        <div style={{ width: '100%', height: 400 }}>
           <ResponsiveContainer>
               <ComposedChart
                 data={chartData}
-                margin={{
-                  top: 5, right: 20, left: 0, bottom: 5,
-                }}
+                margin={{ top: 5, right: 20, left: 0, bottom: 5, }}
               >
                 <CartesianGrid strokeDasharray="3 3" stroke="#4b5563" strokeOpacity={0.5} />
                 <XAxis dataKey="name" stroke="#9ca3af" fontSize={12} />
@@ -97,7 +95,8 @@ const PriceChart: React.FC<PriceChartProps> = ({ data, currencySymbol, high52, l
                 <Bar yAxisId="right" dataKey="volume" name="Volume" barSize={20} fill="#4b5563" fillOpacity={0.5}>
                   {
                     chartData.map((entry, index) => {
-                      const color = index > 0 && chartData[index-1].price && entry.price && chartData[index-1].price! < entry.price! ? '#22c55e' : '#ef4444';
+                      const prevPrice = index > 0 ? chartData[index-1].price : null;
+                      const color = prevPrice && entry.price && prevPrice < entry.price ? '#22c55e' : '#ef4444';
                       return <Cell key={`cell-${index}`} fill={color} fillOpacity={0.6} />;
                     })
                   }
@@ -122,7 +121,7 @@ const PriceChart: React.FC<PriceChartProps> = ({ data, currencySymbol, high52, l
                 <CartesianGrid strokeDasharray="3 3" stroke="#4b5563" strokeOpacity={0.5} />
                 <XAxis dataKey="name" stroke="#9ca3af" fontSize={12} />
                 <YAxis stroke="#9ca3af" fontSize={12} domain={[0, 100]} ticks={[0, 30, 70, 100]} width={50} />
-                <Tooltip content={<CustomTooltip />} />
+                <Tooltip content={<CustomTooltip currencySymbol={currencySymbol} />} />
                 
                 <ReferenceArea y1={70} y2={100} fill="rgba(239, 68, 68, 0.1)" />
                 <ReferenceArea y1={0} y2={30} fill="rgba(34, 197, 94, 0.1)" />
