@@ -1,3 +1,4 @@
+
 import { GoogleGenerativeAI, HarmBlockThreshold, HarmCategory } from "@google/generative-ai";
 import type { SentimentAnalysis, NewsArticle, HistoricalDataPoint, PointReason } from '../types';
 import { Sentiment, Recommendation } from '../types';
@@ -5,10 +6,16 @@ import { Sentiment, Recommendation } from '../types';
 const genAI = new GoogleGenerativeAI(process.env.API_KEY!);
 
 function cleanAndParseJson(text: string): any {
-  // Remove markdown backticks and potential "json" language identifier
-  const cleanedText = text.replace(/^```(json)?\s*|```$/g, '').trim();
+  // Use a more robust regex to find the JSON block, including cases where 'json' identifier is missing
+  const match = text.match(/```(json)?\s*([\s\S]*?)\s*```/);
+  let jsonText = text.trim();
+
+  if (match && match[2]) {
+    jsonText = match[2].trim();
+  }
+
   try {
-    return JSON.parse(cleanedText);
+    return JSON.parse(jsonText);
   } catch (e) {
     console.error("Failed to parse JSON:", e);
     console.error("Raw response text:", text);
@@ -40,8 +47,8 @@ export const getSentimentAnalysis = async (companyOrSymbol: string, exchange: st
       "companyName": "string",
       "stockSymbol": "string",
       "overallSentiment": "Positive" | "Neutral" | "Negative",
-      "sentimentScore": number, // between -1.0 and 1.0
-      "summary": "string", // Concise summary of the key drivers.
+      "sentimentScore": number,
+      "summary": "string",
       "positivePoints": [ { "point": "string", "reason": "string" } ],
       "negativePoints": [ { "point": "string", "reason": "string" } ],
       "currentPrice": number,
@@ -49,14 +56,14 @@ export const getSentimentAnalysis = async (companyOrSymbol: string, exchange: st
       "fiftyTwoWeekLow": number,
       "currentVolume": number,
       "averageVolume": number,
-      "currencySymbol": "string", // e.g., "$", "₹"
+      "currencySymbol": "string",
       "recommendation": "Buy" | "Hold" | "Sell",
-      "recommendationSummary": "string", // A single, brief sentence explaining the recommendation.
+      "recommendationSummary": "string",
       "aspectSentiment": {
-        "financials": number, // between -1.0 and 1.0
-        "product": number | null, // or null if not applicable
-        "management": number, // between -1.0 and 1.0
-        "marketPosition": number // between -1.0 and 1.0
+        "financials": number,
+        "product": number | null,
+        "management": number,
+        "marketPosition": number
       },
       "newsArticles": [
         { "title": "string", "snippet": "string", "uri": "string" }
@@ -66,7 +73,7 @@ export const getSentimentAnalysis = async (companyOrSymbol: string, exchange: st
           "date": "YYYY-MM", 
           "price": number | null,
           "volume": number | null,
-          "sentimentScore": number | null, // A score from -1.0 to 1.0 for that month
+          "sentimentScore": number | null,
           "ma50": number | null,
           "ma200": number | null,
           "rsi14": number | null
@@ -80,11 +87,13 @@ export const getSentimentAnalysis = async (companyOrSymbol: string, exchange: st
     }
 
     **Important Instructions:**
-    - Use Google Search for the most current data.
-    - The 'summary' MUST be concise, highlighting the main drivers for the sentiment.
+    - Use Google Search to find up-to-date information.
+    - 'summary' MUST be concise, highlighting the main drivers.
     - 'recommendationSummary' MUST be a single, brief sentence.
-    - For 'positivePoints' and 'negativePoints', provide specific reasons. Example: { "point": "Strong Earnings", "reason": "Reported 20% YoY revenue growth, beating expectations." }.
-    - 'historicalData' must contain exactly 12 entries for the last 12 months. If a metric isn't available for a month, use 'null'.
+    - For 'positivePoints' and 'negativePoints', provide a descriptive 'reason' for each 'point'.
+    - 'historicalData' must be an array of 12 objects, one for each of the last 12 months. Ensure 'price' is the closing price. Include 'volume', 'sentimentScore', 'ma50', 'ma200', and 'rsi14' if available; otherwise, use 'null'.
+    - 'aspectSentiment' scores must be between -1.0 and 1.0.
+    - Ensure all fields are populated correctly.
   `;
 
   try {
@@ -100,7 +109,7 @@ export const getSentimentAnalysis = async (companyOrSymbol: string, exchange: st
     if (Array.isArray(parsedData.newsArticles)) {
       parsedData.newsArticles = parsedData.newsArticles.filter(
         (article: any): article is NewsArticle => 
-          article && article.title && article.snippet && article.uri
+          article && typeof article.title === 'string' && typeof article.snippet === 'string' && typeof article.uri === 'string' && article.uri.startsWith('http')
       );
     } else {
       parsedData.newsArticles = [];
@@ -116,10 +125,12 @@ export const getSentimentAnalysis = async (companyOrSymbol: string, exchange: st
     }
 
     const groundingMetadata = response.candidates?.[0]?.groundingMetadata;
-    const dataSources = groundingMetadata?.groundingAttributions
-        ?.map(source => ({ uri: source.web?.uri, title: source.web?.title }))
-        .filter((source): source is { uri: string; title: string } => !!(source && source.uri && source.title)) ?? [];
-
+    const dataSources = groundingMetadata?.webSearchQueries?.flatMap(q => q.results || [])
+        .map(result => ({
+            uri: result.uri,
+            title: result.title
+        })) ?? [];
+    
     const uniqueDataSources = Array.from(new Map(dataSources.map(item => [item.uri, item])).values());
   
     const finalResult: SentimentAnalysis = {
@@ -130,10 +141,15 @@ export const getSentimentAnalysis = async (companyOrSymbol: string, exchange: st
     const hasValidPoints = (points: any[]): points is PointReason[] => 
         Array.isArray(points) && points.every(p => p && typeof p.point === 'string' && typeof p.reason === 'string');
     
-    if (!finalResult.companyName || !finalResult.stockSymbol || !hasValidPoints(finalResult.positivePoints) || !hasValidPoints(finalResult.negativePoints)) {
+    if (
+        !finalResult.companyName || 
+        !finalResult.stockSymbol || 
+        !hasValidPoints(finalResult.positivePoints || []) || 
+        !hasValidPoints(finalResult.negativePoints || [])
+    ) {
         throw new Error("Core analysis data is missing or malformed.");
     }
-
+      
     return finalResult;
   } catch (error) {
     console.error("Error calling or processing Gemini API:", error);
