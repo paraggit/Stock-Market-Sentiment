@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { SentimentAnalysis } from './types';
+import type { SentimentAnalysis } from './types';
 import { getSentimentAnalysis } from './services/geminiService';
 import StockInputForm from './components/StockInputForm';
 import SentimentResult from './components/SentimentResult';

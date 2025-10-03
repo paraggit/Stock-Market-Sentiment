@@ -1,3 +1,4 @@
+
 import React from 'react';
 import type { NewsArticle } from '../types';
 import { NewsIcon } from './icons/NewsIcon';
