@@ -59,6 +59,14 @@ export const getSentimentAnalysis = async (companyOrSymbol: string, exchange: st
   
       const parsedData = JSON.parse(jsonText);
   
+      // Sanitize news articles to filter out any incomplete entries
+      if (Array.isArray(parsedData.newsArticles)) {
+        parsedData.newsArticles = parsedData.newsArticles.filter(
+          (article: any): article is NewsArticle => 
+            article && article.title && article.snippet && article.uri
+        );
+      }
+
       const groundingMetadata = response.candidates?.[0]?.groundingMetadata;
       const dataSources = groundingMetadata?.groundingChunks
         ?.map(chunk => chunk.web)
