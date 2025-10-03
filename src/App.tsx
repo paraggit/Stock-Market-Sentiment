@@ -35,7 +35,7 @@ const App: React.FC = () => {
   }, []);
   
   const Header: React.FC = () => (
-    <div className="text-center p-6 bg-base-200 rounded-lg shadow-xl mb-8">
+    <div className="text-center p-6 bg-gray-800 rounded-lg shadow-xl mb-8">
       <h1 className="text-4xl md:text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-teal-400 to-sky-400 mb-2">
         AI Stock Sentiment Analyzer
       </h1>

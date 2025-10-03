@@ -222,7 +222,7 @@ const SentimentResult: React.FC<SentimentResultProps> = ({ result }) => {
                               href={source.uri} 
                               target="_blank" 
                               rel="noopener noreferrer" 
-                              className="block text-sm text-sky-400 hover:text-sky-300 hover:underline truncate"
+                              className="block text-sm text-sky-400 hover:sky-300 hover:underline truncate"
                               title={source.uri}
                           >
                               {source.title || new URL(source.uri).hostname}

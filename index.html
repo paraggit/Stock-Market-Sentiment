@@ -7,37 +7,46 @@
     <meta name="theme-color" content="#000000" />
     <meta
       name="description"
-      content="Stock Sentiment Analysis App"
+      content="AI Stock Sentiment Analyzer"
     />
-    <title>Stock Sentiment Analyzer</title>
+    <title>AI Stock Sentiment Analyzer</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
       tailwind.config = {
         theme: {
           extend: {
             colors: {
-              'brand-primary': '#00BFFF',
-              'brand-secondary': '#1E90FF',
-              'sentiment-positive': '#22c55e',
-              'sentiment-neutral': '#f59e0b',
-              'sentiment-negative': '#ef4444',
-              'base-100': '#1f2937',
-              'base-200': '#374151',
-              'base-300': '#4b5563',
-            }
-          }
-        }
+              'brand-primary': '#14b8a6', // teal-500
+              'brand-secondary': '#0ea5e9', // sky-500
+              'sentiment-positive': '#22c55e', // green-500
+              'sentiment-neutral': '#f59e0b', // amber-500
+              'sentiment-negative': '#ef4444', // red-500
+              'base-100': '#111827', // gray-900
+              'base-200': '#1f2937', // gray-800
+              'base-300': '#4b5563', // gray-700
+            },
+            animation: {
+              'fade-in-up': 'fadeInUp 0.5s ease-out forwards',
+            },
+            keyframes: {
+              fadeInUp: {
+                '0%': { opacity: '0', transform: 'translateY(20px)' },
+                '100%': { opacity: '1', transform: 'translateY(0)' },
+              },
+            },
+          },
+        },
       }
     </script>
   <script type="importmap">
 {
   "imports": {
-    "react": "https://esm.sh/react@18.2.0",
-    "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
+    "react": "https://esm.sh/react@18.2.0?dev",
+    "react-dom/client": "https://esm.sh/react-dom@18.2.0/client?dev",
     "@google/generative-ai": "https://esm.run/@google/generative-ai",
-    "recharts": "https://esm.sh/recharts@2.12.7",
-    "react-dom/": "https://esm.sh/react-dom@18.2.0/",
-    "react/": "https://esm.sh/react@18.2.0/",
+    "recharts": "https://esm.sh/recharts@2.12.7?deps=react@18.2.0,react-dom@18.2.0",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
+    "react/": "https://aistudiocdn.com/react@^19.2.0/",
     "@google/genai": "https://aistudiocdn.com/@google/genai@^1.22.0"
   }
 }

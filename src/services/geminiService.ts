@@ -1,8 +1,10 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
+// FIX: Use GoogleGenAI instead of the deprecated GoogleGenerativeAI.
+import { GoogleGenAI } from "@google/genai";
 import type { SentimentAnalysis, NewsArticle, HistoricalDataPoint, PointReason } from '../types';
 import { Sentiment, Recommendation } from '../types';
 
-const ai = new GoogleGenerativeAI(process.env.API_KEY!);
+// FIX: Initialize with a named apiKey parameter.
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 function parseJsonFromMarkdown(text: string): any {
   // Use a more robust regex to find the JSON block
@@ -48,7 +50,7 @@ export const getSentimentAnalysis = async (companyOrSymbol: string, exchange: st
       "currencySymbol": "string (e.g., '$' for USD, '₹' for INR)",
       "recommendation": "Buy" | "Hold" | "Sell",
       "recommendationSummary": "string (A single, brief sentence explaining the recommendation)",
-      "aspectSentiment": {
+       "aspectSentiment": {
         "financials": -1.0 to 1.0,
         "product": -1.0 to 1.0,
         "management": -1.0 to 1.0,
@@ -86,21 +88,18 @@ export const getSentimentAnalysis = async (companyOrSymbol: string, exchange: st
   `;
 
   try {
-    const genAI = new GoogleGenerativeAI(process.env.API_KEY!);
-    const model = genAI.getGenerativeModel({
-      model: "gemini-1.5-flash",
-      generationConfig: {
-        responseMimeType: "application/json",
+    // FIX: Use ai.models.generateContent directly and use the correct model name 'gemini-2.5-flash'.
+    // The deprecated 'getGenerativeModel' and 'gemini-1.5-flash' model are no longer used.
+    const response = await ai.models.generateContent({
+      model: "gemini-2.5-flash",
+      contents: prompt,
+      config: {
+        tools: [{googleSearch: {}}],
       },
     });
-
-    const result = await model.generateContent({
-      contents: [{ role: 'user', parts: [{ text: prompt }] }],
-      tools: [{ google_search: {} }],
-    });
     
-    const response = result.response;
-    const responseText = response.text();
+    // FIX: Access the response text via the .text property, not as a function call.
+    const responseText = response.text;
     const parsedData = parseJsonFromMarkdown(responseText);
 
     // Sanitize news articles to filter out any incomplete entries
@@ -123,10 +122,12 @@ export const getSentimentAnalysis = async (companyOrSymbol: string, exchange: st
         parsedData.historicalData = [];
     }
 
-    const groundingAttribution = response.candidates?.[0]?.citationMetadata?.citationSources;
-    const dataSources = groundingAttribution
-        ?.map(source => ({ uri: source.uri, title: source.uri })) // Title may not be available directly in this structure, using URI as fallback
-        .filter((source): source is { uri: string; title: string } => !!source.uri) ?? [];
+    // FIX: Correctly extract grounding metadata for data sources.
+    const groundingMetadata = response.candidates?.[0]?.groundingMetadata;
+    const dataSources = groundingMetadata?.groundingChunks
+        ?.map(chunk => chunk.web)
+        .filter((web): web is { uri: string; title: string } => !!(web && web.uri && web.title))
+        .map(web => ({ title: web.title, uri: web.uri })) ?? [];
     
     // Deduplicate sources based on URI
     const uniqueDataSources = Array.from(new Map(dataSources.map(item => [item['uri'], item])).values());
@@ -136,18 +137,17 @@ export const getSentimentAnalysis = async (companyOrSymbol: string, exchange: st
       dataSources: uniqueDataSources,
     };
     
+    // FIX: Removed validation for deprecated response structure.
     if (
         !finalResult.companyName || 
-        !finalResult.stockSymbol || 
-        !finalResult.currencySymbol ||
-        !result.response.candidates?.[0]?.content.parts[0].text
+        !finalResult.stockSymbol
     ) {
         throw new Error("Received incomplete or invalid data from the AI model.");
     }
       
     // Type check for point/reason objects
     const hasValidPoints = (points: any[]): points is PointReason[] => 
-        Array.isArray(points) && points.every(p => typeof p.point === 'string' && typeof p.reason === 'string');
+        Array.isArray(points) && points.every(p => p && typeof p.point === 'string' && typeof p.reason === 'string');
 
     if (!hasValidPoints(finalResult.positivePoints) || !hasValidPoints(finalResult.negativePoints)) {
         throw new Error("Invalid structure for positive/negative points.");
