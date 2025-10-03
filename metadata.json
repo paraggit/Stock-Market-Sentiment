@@ -1,0 +1,5 @@
+{
+  "name": "Stock Sentiment Analyzer",
+  "description": "An application that accepts a company name or stock symbol and provides a real-time market sentiment analysis by gathering and interpreting data from various financial news and social media sources.",
+  "requestFramePermissions": []
+}
