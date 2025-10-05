@@ -20,7 +20,7 @@ export default defineConfig(({ mode }) => {
         }
       },
       optimizeDeps: {
-        include: ['react', 'react-dom', 'recharts']
+        include: ['react', 'react-dom', 'react-dom/client', 'recharts']
       }
     };
 });

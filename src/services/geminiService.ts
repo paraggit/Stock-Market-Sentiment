@@ -3,7 +3,12 @@ import { GoogleGenerativeAI, HarmBlockThreshold, HarmCategory } from "@google/ge
 import type { SentimentAnalysis, NewsArticle, HistoricalDataPoint, PointReason } from '../types';
 import { Sentiment, Recommendation } from '../types';
 
-const genAI = new GoogleGenerativeAI(process.env.API_KEY!);
+const apiKey = process.env.GEMINI_API_KEY;
+if (!apiKey) {
+  throw new Error("GEMINI_API_KEY environment variable is not set. Please add your Gemini API key to your environment variables.");
+}
+
+const genAI = new GoogleGenerativeAI(apiKey);
 
 function cleanAndParseJson(text: string): any {
   // Use a more robust regex to find the JSON block, including cases where 'json' identifier is missing
@@ -153,6 +158,19 @@ export const getSentimentAnalysis = async (companyOrSymbol: string, exchange: st
     return finalResult;
   } catch (error) {
     console.error("Error calling or processing Gemini API:", error);
+    
+    if (error instanceof Error) {
+      if (error.message.includes("API key")) {
+        throw new Error("Invalid API key. Please check your GEMINI_API_KEY environment variable.");
+      } else if (error.message.includes("quota")) {
+        throw new Error("API quota exceeded. Please try again later.");
+      } else if (error.message.includes("network") || error.message.includes("fetch")) {
+        throw new Error("Network error. Please check your internet connection and try again.");
+      } else if (error.message.includes("Invalid JSON")) {
+        throw new Error("Invalid response format from AI model. Please try again.");
+      }
+    }
+    
     throw new Error("Failed to generate sentiment analysis from the AI model. The stock symbol may be invalid or there could be a temporary issue. Please try again.");
   }
 };
