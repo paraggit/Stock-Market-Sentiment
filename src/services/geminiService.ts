@@ -4,6 +4,10 @@ import type { SentimentAnalysis, NewsArticle, HistoricalDataPoint, PointReason }
 import { Sentiment, Recommendation } from '../types';
 
 const apiKey = process.env.GEMINI_API_KEY;
+console.log("Environment check - GEMINI_API_KEY present:", !!apiKey);
+console.log("Environment check - Key length:", apiKey ? apiKey.length : 0);
+console.log("Environment check - Key starts with:", apiKey ? apiKey.substring(0, 10) + "..." : "undefined");
+
 if (!apiKey) {
   throw new Error("GEMINI_API_KEY environment variable is not set. Please add your Gemini API key to your environment variables.");
 }
@@ -29,8 +33,11 @@ function cleanAndParseJson(text: string): any {
 }
 
 export const getSentimentAnalysis = async (companyOrSymbol: string, exchange: string): Promise<SentimentAnalysis> => {
+  console.log("Starting sentiment analysis for:", companyOrSymbol, "on", exchange);
+  console.log("API Key present:", !!apiKey);
+  
   const model = genAI.getGenerativeModel({
-    model: "gemini-1.5-flash",
+    model: "gemini-2.5-flash",
     safetySettings: [
         { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
         { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
@@ -92,7 +99,7 @@ export const getSentimentAnalysis = async (companyOrSymbol: string, exchange: st
     }
 
     **Important Instructions:**
-    - Use Google Search to find up-to-date information.
+    - Provide analysis based on your training data and knowledge.
     - 'summary' MUST be concise, highlighting the main drivers.
     - 'recommendationSummary' MUST be a single, brief sentence.
     - For 'positivePoints' and 'negativePoints', provide a descriptive 'reason' for each 'point'.
@@ -102,10 +109,13 @@ export const getSentimentAnalysis = async (companyOrSymbol: string, exchange: st
   `;
 
   try {
+    console.log("Attempting to call Gemini API...");
     const result = await model.generateContent({
         contents: [{ role: 'user', parts: [{ text: prompt }] }],
-        tools: [{googleSearch: {}}],
+        // Temporarily removing Google Search tool to test basic connectivity
+        // tools: [{googleSearch: {}}],
     });
+    console.log("API call successful, processing response...");
     
     const response = result.response;
     const responseText = response.text();
@@ -160,17 +170,23 @@ export const getSentimentAnalysis = async (companyOrSymbol: string, exchange: st
     console.error("Error calling or processing Gemini API:", error);
     
     if (error instanceof Error) {
-      if (error.message.includes("API key")) {
+      if (error.message.includes("API key") || error.message.includes("authentication")) {
         throw new Error("Invalid API key. Please check your GEMINI_API_KEY environment variable.");
-      } else if (error.message.includes("quota")) {
+      } else if (error.message.includes("quota") || error.message.includes("limit")) {
         throw new Error("API quota exceeded. Please try again later.");
-      } else if (error.message.includes("network") || error.message.includes("fetch")) {
-        throw new Error("Network error. Please check your internet connection and try again.");
-      } else if (error.message.includes("Invalid JSON")) {
+      } else if (error.message.includes("network") || error.message.includes("fetch") || error.message.includes("ENOTFOUND") || error.message.includes("ECONNREFUSED")) {
+        throw new Error("Network error. Please check your internet connection and try again. If the issue persists, the Gemini API might be temporarily unavailable.");
+      } else if (error.message.includes("Invalid JSON") || error.message.includes("parse")) {
         throw new Error("Invalid response format from AI model. Please try again.");
+      } else if (error.message.includes("timeout")) {
+        throw new Error("Request timeout. The API is taking too long to respond. Please try again.");
+      } else if (error.message.includes("CORS") || error.message.includes("cors")) {
+        throw new Error("CORS error. This might be a browser security issue. Please try refreshing the page.");
       }
     }
     
-    throw new Error("Failed to generate sentiment analysis from the AI model. The stock symbol may be invalid or there could be a temporary issue. Please try again.");
+    // Log the full error for debugging
+    console.error("Full error details:", error);
+    throw new Error(`Failed to generate sentiment analysis: ${error instanceof Error ? error.message : 'Unknown error'}. Please try again.`);
   }
 };
