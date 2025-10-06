@@ -71,6 +71,12 @@ npm run dev          # Start development server
 npm run build        # Build for production
 npm run preview      # Preview production build
 
+# Docker
+docker build -t stock-sentiment-analyzer .                    # Build Docker image
+docker run -p 3000:3000 -e GEMINI_API_KEY=xxx stock-sentiment-analyzer  # Run container
+docker-compose up -d                                          # Run with Docker Compose
+docker-compose --profile dev up                              # Run development mode
+
 # Linting
 npm run lint         # Run ESLint
 npm run lint:fix     # Fix ESLint issues
@@ -153,7 +159,44 @@ PORT=3000
 
 ## 🚀 Deployment
 
-### Vercel (Recommended)
+### Docker (Recommended)
+
+#### Using Docker Compose
+
+1. **Set up environment variables**
+   ```bash
+   cp env.template .env
+   # Edit .env with your API key
+   ```
+
+2. **Build and run with Docker Compose**
+   ```bash
+   # Production
+   docker-compose up -d
+   
+   # Development with hot reload
+   docker-compose --profile dev up
+   ```
+
+3. **Access the application**
+   - Production: http://localhost:3000
+   - Development: http://localhost:3001
+
+#### Using Docker directly
+
+1. **Build the image**
+   ```bash
+   docker build -t stock-sentiment-analyzer .
+   ```
+
+2. **Run the container**
+   ```bash
+   docker run -p 3000:3000 \
+     -e GEMINI_API_KEY=your_api_key_here \
+     stock-sentiment-analyzer
+   ```
+
+### Vercel (Cloud Platform)
 
 1. Push your code to GitHub
 2. Connect your repository to Vercel
